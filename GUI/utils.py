@@ -1,0 +1,93 @@
+import requests
+import wikipedia
+import pywhatkit as kit
+from email.message import EmailMessage
+import smtplib
+import gtts
+import os
+from pydub import AudioSegment
+from pydub.playback import play
+
+from constants import (
+    EMAIL,
+    PASSWORD,
+    IP_ADDR_API_URL,
+    NEWS_FETCH_API_URL,
+    NEWS_FETCH_API_KEY,
+    WEATHER_FORECAST_API_URL,
+    WEATHER_FORECAST_API_KEY,
+    SMTP_URL,
+    SMTP_PORT,
+)
+
+def speak(text):
+    tts=gtts.gTTS(text,lang='en')
+    tts.save("output.wav")
+
+    audio=AudioSegment.from_file("output.wav")
+    os.remove("output.wav")
+    audio=audio.speedup(playback_speed=1.5)
+
+    play(audio)
+
+def find_my_ip():
+    my_ip_address=requests.get('https://api.ipify.org?format=json').json()
+    return my_ip_address["ip"]
+
+def search_on_wikipedia(query):
+    results=wikipedia.summary(query,sentences=2)
+    return results
+
+def search_on_google(user_query_for_google_search):
+    kit.search(user_query_for_google_search)
+
+def youtube(video):
+    kit.playonyt(video)
+
+def send_email(receiver_email,subject,message):
+    try:
+        email=EmailMessage()
+        email['To']=receiver_email
+        email['Subject']=subject
+        email['From']={EMAIL}
+
+        email.set_content(message)
+        s=smtplib.SMTP("smtp.gmail.com",587)
+        s.starttls()
+        s.login(EMAIL, PASSWORD)
+        s.send_message(email)
+        s.close()
+        return True
+
+    except Exception as e:
+        print(e)
+        return False
+
+def news():
+    news_headlines=[]
+    news_result=requests.get(
+        NEWS_FETCH_API_URL,
+        params={
+            "country":"in",
+            "category":"general",
+            "apiKey":NEWS_FETCH_API_KEY,
+        },
+    ).json()
+    articles=news_result["articles"]
+    for articles in articles:
+        news_headlines.append(articles["title"])
+    return news_headlines[:6]
+
+def weather_forcast(city):
+    res=requests.get(
+        WEATHER_FORECAST_API_URL,
+        params={
+            "q":city,
+            "appid":WEATHER_FORECAST_API_KEY,
+            "units":"metric",
+        },
+    ).json()
+    weather=res["weather"][0]["main"]
+    temp=res["main"]["temp"]
+    feels_like=res["main"]["feels_like"]
+    return weather,f"{temp} degree Celcius",f"{feels_like} degree Celcius"
